@@ -1,19 +1,18 @@
 # 🚀 Pitch Deck Analyzer
 
-```markdown name=README.md
+markdown name=README.md
 # 🚀 Pitch Deck Analyzer API
 
 An AI tool that reads your startup pitch deck and gives you two scores:
 - **Company Fit Score** (0-100%)
 - **Founder Fit Score** (0-100%)
 
----
 
 ## 🎯 What It Does
 
 Upload a PDF pitch deck → Get fit scores
 
-```
+
 Input: Your pitch deck PDF
 ↓
 Analyzes company details (problem, solution, market, traction)
@@ -21,9 +20,7 @@ Analyzes company details (problem, solution, market, traction)
 Analyzes founder details (names, experience, education)
 ↓
 Output: Two percentage scores + recommendations
-```
 
----
 
 ## 🚀 Quick Start (5 Minutes)
 
@@ -181,7 +178,7 @@ python create_test_pdf.py
 python test_api.py
 ```
 
----
+
 
 ## 📝 What the Scores Mean
 
@@ -201,7 +198,7 @@ python test_api.py
 | 61-80% | Strong team |
 | 81-100% | Excellent team |
 
----
+
 
 ## 🚨 Troubleshooting
 
@@ -227,7 +224,6 @@ python -c "from nlp.pdf_extractor import PDFExtractor; print('OK')"
 - First request takes 15-20 seconds (loading AI models)
 - Next requests are 8-12 seconds
 
----
 
 ## 📊 Training Data
 
@@ -237,7 +233,7 @@ The system comes with **100 example companies**:
 
 To use your own data, edit `scraper/synthetic_data_generator.py`
 
----
+
 
 ## 🔑 Key Files
 
@@ -249,7 +245,7 @@ To use your own data, edit `scraper/synthetic_data_generator.py`
 | `create_test_pdf.py` | Make test PDF |
 | `test_api.py` | Test the API |
 
----
+
 
 ## 📦 What It Uses
 
@@ -259,7 +255,6 @@ To use your own data, edit `scraper/synthetic_data_generator.py`
 - **XGBoost** - AI predictions
 - **pandas** - Data handling
 
----
 
 ## 🎯 How It Works
 
@@ -277,14 +272,14 @@ To use your own data, edit `scraper/synthetic_data_generator.py`
 6. Return two scores + feedback
 ```
 
----
+
 
 ## 💡 Example Usage
 
 ### Upload a pitch deck
 ```bash
 curl -F "file=@pitch_deck.pdf" http://localhost:8000/analyze
-```
+
 
 ### Check if API is running
 ```bash
@@ -294,7 +289,6 @@ curl http://localhost:8000/health
 ### View documentation
 Open in browser: `http://localhost:8000/docs`
 
----
 
 ## ⚡ Performance
 
@@ -305,7 +299,7 @@ Open in browser: `http://localhost:8000/docs`
 | Max file size | 50 MB |
 | Max pages | 100 |
 
----
+
 
 ## 📝 API Endpoints
 
@@ -315,7 +309,7 @@ Open in browser: `http://localhost:8000/docs`
 | `GET /health` | Check if API is running |
 | `GET /docs` | See all endpoints |
 
----
+
 
 ## 🐛 Common Issues
 
@@ -331,7 +325,7 @@ A: First run loads AI models (slow), others are faster
 **Q: Can I use with my own data?**
 A: Yes! Edit `scraper/synthetic_data_generator.py` and retrain
 
----
+
 
 ## 📞 Need Help?
 
@@ -339,13 +333,13 @@ A: Yes! Edit `scraper/synthetic_data_generator.py` and retrain
 2. Look at API terminal for error messages
 3. Run `python test_api.py` to test everything
 
----
+
 
 ## 📄 License
 
 MIT - Use freely, modify as needed
 
----
+
 
 ## 🎉 You're Ready!
 
