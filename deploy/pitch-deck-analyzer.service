@@ -1,0 +1,15 @@
+[Unit]
+Description=Pitch Deck Analyzer API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/pitch-deck-analyzer    # <-- update to your app path
+ExecStart=/home/ubuntu/pitch-deck-analyzer/venv/bin/python /home/ubuntu/pitch-deck-analyzer/api_server.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
