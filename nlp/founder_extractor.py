@@ -1,12 +1,7 @@
 """
-Founder Details Extractor from Pitch Deck
-Extracts:
-- Founder names
-- Experience level
-- Education/Background
-- Technical expertise
-- Previous startup experience
-- Domain expertise
+Founder Extractor
+Extracts founder information from pitch deck text
+Enhanced with previous company extraction
 """
 
 import re
@@ -14,225 +9,244 @@ from typing import Dict, List, Optional
 from utils.logger import log
 
 class FounderExtractor:
-    """Extract founder-specific details from pitch deck text."""
-    
-    # Top tier schools (Stanford, MIT, etc.)
-    TOP_SCHOOLS = [
-        "stanford", "mit", "harvard", "caltech", "berkeley", "oxford", "cambridge",
-        "carnegie mellon", "yale", "princeton", "uc berkeley", "cmu"
-    ]
-    
-    # Experience keywords
-    EXPERIENCE_KEYWORDS = [
-        "ceo", "cto", "founder", "co-founder", "cofounder",
-        "executive", "director", "manager", "lead", "engineer",
-        "product manager", "former", "previously"
-    ]
-    
-    # Technical keywords
-    TECHNICAL_KEYWORDS = [
-        "engineer", "developer", "programmer", "software", "coding",
-        "machine learning", "ai", "data science", "full stack",
-        "frontend", "backend", "devops", "architect"
-    ]
-    
-    # Startup keywords
-    STARTUP_KEYWORDS = [
-        "serial entrepreneur", "serial founder", "startup", "founded",
-        "exit", "acquired", "exited", "bootstrap", "venture"
-    ]
+    """Extract founder information from text."""
     
     def __init__(self):
         """Initialize founder extractor."""
         log.info("✓ FounderExtractor initialized")
-    
-    def extract_founder_info(self, text: str, entities: Dict) -> Dict:
-        """
-        Extract comprehensive founder information.
         
-        Args:
-            text: Full pitch deck text
-            entities: Named entities from NLP analysis
-        
-        Returns:
-            Dictionary with founder details
-        """
-        founder_info = {
-            "names": self._extract_founder_names(text, entities),
-            "count": 0,
-            "experience_level": self._calculate_experience_level(text),
-            "education": self._extract_education(text),
-            "technical_background": self._extract_technical_background(text),
-            "previous_startups": self._extract_startup_history(text),
-            "domain_expertise": self._extract_domain_expertise(text),
-        }
-        
-        founder_info["count"] = len(founder_info["names"])
-        
-        log.info(f"✓ Extracted {founder_info['count']} founders")
-        
-        return founder_info
-    
-    def _extract_founder_names(self, text: str, entities: Dict) -> List[str]:
-        """Extract founder names."""
-        names = []
-        
-        # Get from named entities
-        if entities.get("PERSON"):
-            names.extend(entities["PERSON"][:3])  # Top 3 persons
-        
-        # Look for specific patterns
-        patterns = [
-            r"(?:Founder|Co-founder|Cofounder)s?\s*:?\s*([A-Za-z\s]+?)(?:,|and|$)",
-            r"(?:Founded by|Created by)\s+([A-Za-z\s]+?)(?:,|and|in|$)",
-            r"(?:Team|Leadership)\s*:?\s*(?:.*?)([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s*-|,|$)",
+        # Common job titles to look for
+        self.job_titles = [
+            'CEO', 'CTO', 'COO', 'CFO', 'Founder', 'Co-founder', 'Co-Founder',
+            'President', 'VP', 'Vice President', 'Director', 'Manager',
+            'Engineer', 'Developer', 'Product Manager', 'Designer'
         ]
         
-        for pattern in patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE | re.DOTALL)
-            for match in matches:
-                name = match.group(1).strip()
-                # Filter out common non-names
-                if name and len(name.split()) >= 2 and name not in names:
-                    names.append(name)
+        # Top companies to look for (FAANG, unicorns, etc)
+        self.known_companies = [
+            'Google', 'Amazon', 'Facebook', 'Apple', 'Microsoft', 'Meta',
+            'Tesla', 'Netflix', 'Airbnb', 'Uber', 'Stripe', 'Dropbox',
+            'Figma', 'Slack', 'Twilio', 'Palantir', 'Coursera', 'Notion',
+            'OpenAI', 'LinkedIn', 'Instagram', 'WhatsApp', 'Spotify',
+            'Snapchat', 'Pinterest', 'Robinhood', 'Brex', 'Canva',
+            'McKinsey', 'Goldman Sachs', 'BCG', 'Bain', 'Morgan Stanley'
+        ]
         
-        return list(dict.fromkeys(names))[:5]  # Unique, max 5 names
+        # Top universities to look for
+        self.top_universities = [
+            'Stanford', 'MIT', 'Harvard', 'Berkeley', 'Carnegie Mellon',
+            'Yale', 'Princeton', 'Penn', 'Cornell', 'Caltech',
+            'Cambridge', 'Oxford', 'Polytechnique', 'ETH Zurich',
+            'University of Toronto', 'IIT', 'NUS', 'Tsinghua', 'Peking'
+        ]
     
-    def _calculate_experience_level(self, text: str) -> str:
-        """Calculate overall experience level."""
-        text_lower = text.lower()
+    def extract_founder_info(self, text: str, entities: Dict) -> Optional[Dict]:
+        """
+        Extract founder information from text.
         
-        # Count experience indicators
-        experience_count = 0
+        Args:
+            text: Pitch deck text
+            entities: NER entities from NLP pipeline
         
-        # Check for C-level positions
-        if any(x in text_lower for x in ["ceo", "cto", "cfo", "chief"]):
-            experience_count += 2
+        Returns:
+            Dictionary with founder information including previous companies
+        """
+        log.info("Extracting founder information...")
         
-        # Check for director/manager positions
-        if any(x in text_lower for x in ["director", "manager", "lead", "head"]):
-            experience_count += 1
+        info = {
+            "names": [],
+            "count": 0,
+            "experience_level": "Unknown",
+            "education": {"top_school": None, "degree": None, "field": None},
+            "technical_background": False,
+            "previous_companies": [],  # NEW
+            "startup_experience": False,
+            "domain_expertise": "General",
+        }
         
-        # Check for senior/experience indicators
-        if any(x in text_lower for x in ["senior", "principal", "staff", "experience", "years"]):
-            experience_count += 1
+        # Extract names from entities
+        if entities.get("PERSON"):
+            info["names"] = entities["PERSON"][:3]  # Limit to 3 founders
+            info["count"] = len(info["names"])
         
-        # Check for big company background
-        big_companies = ["google", "facebook", "meta", "amazon", "apple", "microsoft", 
-                        "stripe", "uber", "airbnb", "netflix"]
-        if any(x in text_lower for x in big_companies):
-            experience_count += 2
+        # Extract previous companies from text
+        info["previous_companies"] = self._extract_previous_companies(text)
         
-        # Determine level
-        if experience_count >= 4:
+        # Determine experience level based on previous companies
+        info["experience_level"] = self._determine_experience_level(
+            info["previous_companies"],
+            text
+        )
+        
+        # Extract education
+        info["education"] = self._extract_education(text)
+        
+        # Detect technical background
+        info["technical_background"] = self._detect_technical_background(text)
+        
+        # Detect startup experience
+        info["startup_experience"] = bool(
+            re.search(r'founder|co-founder|startup|entrepreneur', text, re.IGNORECASE)
+        )
+        
+        # Determine domain expertise
+        info["domain_expertise"] = self._determine_domain_expertise(text)
+        
+        log.info(f"✓ Extracted {info['count']} founders")
+        log.info(f"  Experience: {info['experience_level']}")
+        log.info(f"  Previous companies: {len(info['previous_companies'])}")
+        log.info(f"  Technical: {info['technical_background']}")
+        
+        return info
+    
+    def _extract_previous_companies(self, text: str) -> List[Dict]:
+        """
+        Extract previous companies from text.
+        
+        Args:
+            text: Input text
+        
+        Returns:
+            List of previous companies with positions
+        """
+        previous_companies = []
+        
+        # Look for known companies in text
+        for company in self.known_companies:
+            if company.lower() in text.lower():
+                # Try to find associated job title
+                position = "Employee"
+                
+                # Look for patterns like "CEO at Google", "Google Engineer", etc.
+                for title in self.job_titles:
+                    pattern = rf'{title}\s+(?:at\s+)?{company}|{company}\s+{title}'
+                    match = re.search(pattern, text, re.IGNORECASE)
+                    if match:
+                        position = title
+                        break
+                
+                # Avoid duplicates
+                if not any(c['name'].lower() == company.lower() for c in previous_companies):
+                    previous_companies.append({
+                        "name": company,
+                        "position": position
+                    })
+        
+        return previous_companies
+    
+    def _determine_experience_level(self, previous_companies: List[Dict], text: str) -> str:
+        """
+        Determine experience level from previous companies.
+        
+        Args:
+            previous_companies: List of previous companies
+            text: Input text
+        
+        Returns:
+            Experience level string
+        """
+        experience_score = 0
+        
+        # Score based on number of previous companies
+        experience_score += len(previous_companies)
+        
+        # Look for seniority indicators
+        if re.search(r'CEO|CTO|COO|VP|President|Director', text, re.IGNORECASE):
+            experience_score += 2
+        
+        # Look for big tech company experience
+        for company in ['Google', 'Amazon', 'Facebook', 'Apple', 'Microsoft']:
+            if company.lower() in text.lower():
+                experience_score += 1.5
+        
+        # Categorize
+        if experience_score >= 4:
             return "Highly Experienced"
-        elif experience_count >= 2:
+        elif experience_score >= 2:
             return "Moderately Experienced"
-        elif experience_count >= 1:
+        elif experience_score >= 1:
             return "Some Experience"
         else:
             return "Early Career"
     
     def _extract_education(self, text: str) -> Dict:
-        """Extract education details."""
+        """Extract education information."""
         education = {
             "top_school": None,
             "degree": None,
-            "field_of_study": None,
+            "field": None
         }
         
-        text_lower = text.lower()
-        
-        # Check for top schools
-        for school in self.TOP_SCHOOLS:
-            if school in text_lower:
-                education["top_school"] = school.upper()
+        # Look for top universities
+        for university in self.top_universities:
+            if university.lower() in text.lower():
+                education["top_school"] = university.upper()
                 break
         
-        # Degree patterns
+        # Look for degree
         degree_patterns = [
-            r"(?:B\.?S\.?|B\.?A\.?|Bachelor's?)\s+(?:in|of)?\s+([A-Za-z\s]+?)(?:,|\.|from|$)",
-            r"(?:M\.?S\.?|M\.?A\.?|Master's?)\s+(?:in|of)?\s+([A-Za-z\s]+?)(?:,|\.|from|$)",
-            r"(?:Ph\.?D\.?|Doctorate)\s+(?:in|of)?\s+([A-Za-z\s]+?)(?:,|\.|from|$)",
+            (r'PhD|Ph\.D', 'PhD'),
+            (r'Master|M\.S|MS', 'Master'),
+            (r'Bachelor|B\.S|BS', 'Bachelor'),
+            (r'MBA', 'MBA'),
         ]
         
-        for pattern in degree_patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                education["degree"] = pattern.split()[0]  # B.S., M.S., etc.
-                education["field_of_study"] = match.group(1).strip()
+        for pattern, degree in degree_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                education["degree"] = degree
+                break
+        
+        # Look for field of study
+        field_patterns = [
+            (r'Computer Science|CS|Software', 'Computer Science'),
+            (r'Engineering|Electrical', 'Engineering'),
+            (r'Business|Commerce|Economics', 'Business'),
+            (r'Mathematics|Physics|Science', 'Science'),
+            (r'Design|Art', 'Design'),
+        ]
+        
+        for pattern, field in field_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                education["field"] = field
                 break
         
         return education
     
-    def _extract_technical_background(self, text: str) -> bool:
-        """Check if founder has technical background."""
+    def _detect_technical_background(self, text: str) -> bool:
+        """Detect if founder has technical background."""
+        technical_keywords = [
+            'engineer', 'developer', 'programmer', 'software', 'code',
+            'cto', 'technical', 'algorithm', 'database', 'infrastructure',
+            'computer science', 'machine learning', 'ai', 'ml', 'data'
+        ]
+        
         text_lower = text.lower()
+        count = sum(1 for keyword in technical_keywords if keyword in text_lower)
         
-        technical_count = 0
-        
-        for keyword in self.TECHNICAL_KEYWORDS:
-            if keyword in text_lower:
-                technical_count += 1
-        
-        return technical_count >= 2
+        return count >= 2
     
-    def _extract_startup_history(self, text: str) -> Dict:
-        """Extract previous startup experience."""
-        history = {
-            "is_serial": False,
-            "previous_exits": 0,
-            "previous_startups": None,
+    def _determine_domain_expertise(self, text: str) -> str:
+        """Determine domain expertise from text."""
+        expertise_keywords = {
+            'Technology': ['tech', 'software', 'platform', 'ai', 'ml'],
+            'Finance': ['fintech', 'payment', 'banking', 'investment', 'trading'],
+            'Healthcare': ['health', 'medical', 'biotech', 'pharma'],
+            'E-commerce': ['retail', 'ecommerce', 'marketplace', 'shopping'],
+            'Education': ['education', 'learning', 'training', 'course'],
+            'Manufacturing': ['manufacturing', 'hardware', 'industrial'],
         }
         
         text_lower = text.lower()
         
-        # Check for serial entrepreneur
-        if "serial" in text_lower and ("founder" in text_lower or "entrepreneur" in text_lower):
-            history["is_serial"] = True
+        # Count matches for each domain
+        domain_scores = {}
+        for domain, keywords in expertise_keywords.items():
+            score = sum(1 for keyword in keywords if keyword in text_lower)
+            if score > 0:
+                domain_scores[domain] = score
         
-        # Count exits/acquisitions
-        exit_keywords = ["exit", "acquired", "exited", "sold"]
-        for keyword in exit_keywords:
-            history["previous_exits"] += text_lower.count(keyword)
-        
-        # Extract previous startup names
-        startup_patterns = [
-            r"(?:founded|started|created)\s+([A-Za-z0-9\s]+?)(?:\s+in\s+\d+|,|$)",
-            r"(?:at|from)\s+([A-Za-z0-9\s]+?)\s+(?:where|as a|i was)",
-        ]
-        
-        previous_startups = []
-        for pattern in startup_patterns:
-            matches = re.finditer(pattern, text, re.IGNORECASE)
-            for match in matches:
-                startup = match.group(1).strip()
-                if startup and len(startup) < 50:  # Reasonable startup name length
-                    previous_startups.append(startup)
-        
-        if previous_startups:
-            history["previous_startups"] = ", ".join(list(dict.fromkeys(previous_startups)))
-        
-        return history
-    
-    def _extract_domain_expertise(self, text: str) -> str:
-        """Extract domain/industry expertise."""
-        domains = [
-            ("Finance", ["fintech", "banking", "payment", "trading", "insurance"]),
-            ("Technology", ["ai", "ml", "software", "devops", "blockchain"]),
-            ("E-commerce", ["ecommerce", "retail", "marketplace", "shopping"]),
-            ("Healthcare", ["healthcare", "health", "biotech", "medical", "pharma"]),
-            ("Education", ["education", "edtech", "learning", "training"]),
-            ("Transportation", ["transportation", "logistics", "delivery", "mobility"]),
-            ("Real Estate", ["real estate", "property", "realestate"]),
-            ("Energy", ["energy", "renewable", "solar", "wind"]),
-        ]
-        
-        text_lower = text.lower()
-        
-        for domain, keywords in domains:
-            for keyword in keywords:
-                if keyword in text_lower:
-                    return domain
-        
-        return "General"
+        # Return highest scoring domain
+        if domain_scores:
+            return max(domain_scores, key=domain_scores.get)
+        else:
+            return "General"

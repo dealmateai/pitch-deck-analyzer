@@ -71,6 +71,64 @@ class ModelTrainer:
         
         return X_train, X_test, y_company_train, y_company_test, y_founder_train, y_founder_test
     
+    def train(self, X, y_company, y_founder, feature_names):
+        """
+        Complete training workflow (for new pipeline).
+        Combines prepare_data, train, and evaluate in one call.
+        
+        Args:
+            X: Feature matrix (numpy array or DataFrame)
+            y_company: Company fit labels
+            y_founder: Founder fit labels
+            feature_names: List of feature names
+        """
+        log.info("\n" + "="*80)
+        log.info("TRAINING MODELS WITH FOUNDER EXPERIENCE")
+        log.info("="*80)
+        
+        # Store feature names
+        self.feature_names = feature_names
+        
+        # Prepare data
+        X_train, X_test, y_company_train, y_company_test, y_founder_train, y_founder_test = \
+            self.prepare_data(X, y_company, y_founder)
+        
+        # Train company model
+        log.info("\n[1] Training Company Fit Model...")
+        self.train_company_model(X_train, y_company_train, model_type="xgboost")
+        
+        # Evaluate company model
+        company_metrics = self.evaluate_model(
+            self.company_model,
+            self.scaler_company,
+            X_test,
+            y_company_test,
+            model_name="Company Fit Model"
+        )
+        
+        # Train founder model
+        log.info("\n[2] Training Founder Fit Model...")
+        self.train_founder_model(X_train, y_founder_train, model_type="xgboost")
+        
+        # Evaluate founder model
+        founder_metrics = self.evaluate_model(
+            self.founder_model,
+            self.scaler_founder,
+            X_test,
+            y_founder_test,
+            model_name="Founder Fit Model"
+        )
+        
+        # Save models
+        log.info("\n[3] Saving Models...")
+        self.save_models()
+        
+        log.info("\n" + "="*80)
+        log.info("✅ TRAINING COMPLETE")
+        log.info("="*80)
+        
+        return company_metrics, founder_metrics
+
     def train_company_model(
         self,
         X_train: pd.DataFrame,
