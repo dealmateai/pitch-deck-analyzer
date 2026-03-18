@@ -1,6 +1,6 @@
 # 🚀 Pitch Deck Analyzer
 
-markdown name=README.md
+
 # 🚀 Pitch Deck Analyzer API
 
 An AI tool that reads your startup pitch deck and gives you two scores:
