@@ -1,7 +1,3 @@
-# 📝 SIMPLE & SHORT README.md
-
-Here's a **simple, easy-to-read** version:
-
 ```markdown name=README.md
 # 🚀 Pitch Deck Analyzer API
 
