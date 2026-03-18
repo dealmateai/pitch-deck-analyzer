@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/pitch-deck-analyzer    # <-- update to your app path
-ExecStart=/home/ubuntu/pitch-deck-analyzer/venv/bin/python /home/ubuntu/pitch-deck-analyzer/api_server.py
+User=ec2-user
+WorkingDirectory=/home/ec2-user/pitch-deck-analyzer
+ExecStart=/home/ec2-user/pitch-deck-analyzer/venv/bin/python /home/ec2-user/pitch-deck-analyzer/api_server.py
 Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
