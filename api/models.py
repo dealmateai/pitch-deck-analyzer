@@ -23,6 +23,8 @@ class FounderExtracted(BaseModel):
     experience_level: Optional[str] = Field(None, description="Experience level")
     education: Optional[Dict] = Field(None, description="Education details")
     technical_background: Optional[bool] = Field(None, description="Has technical background")
+    previous_companies: Optional[List[Dict]] = Field(None, description="Previous company experience")
+    startup_experience: Optional[bool] = Field(None, description="Whether founder has startup experience")
     previous_startups: Optional[Dict] = Field(None, description="Previous startup experience")
     domain_expertise: Optional[str] = Field(None, description="Domain expertise")
 

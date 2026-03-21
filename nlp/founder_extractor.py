@@ -60,6 +60,7 @@ class FounderExtractor:
             "education": {"top_school": None, "degree": None, "field": None},
             "technical_background": False,
             "previous_companies": [],  # NEW
+            "previous_startups": {"is_serial": False, "previous_exits": 0},
             "startup_experience": False,
             "domain_expertise": "General",
         }
@@ -88,6 +89,12 @@ class FounderExtractor:
         info["startup_experience"] = bool(
             re.search(r'founder|co-founder|startup|entrepreneur', text, re.IGNORECASE)
         )
+
+        # Keep backward-compatible shape expected by fit calculator.
+        info["previous_startups"] = {
+            "is_serial": info["startup_experience"] or len(info["previous_companies"]) > 0,
+            "previous_exits": 0,
+        }
         
         # Determine domain expertise
         info["domain_expertise"] = self._determine_domain_expertise(text)

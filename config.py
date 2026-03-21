@@ -6,6 +6,26 @@ Pitch Deck Analyzer - Extract Company & Founder Details
 import os
 from pathlib import Path
 
+
+def _load_local_env_file() -> None:
+    """Load key=value pairs from local .env if present."""
+    env_path = Path(__file__).parent / ".env"
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_local_env_file()
+
 # ==================== PROJECT DIRECTORIES ====================
 PROJECT_ROOT = Path(__file__).parent.absolute()
 DATA_DIR = PROJECT_ROOT / "data"
@@ -104,4 +124,22 @@ EXTRACTION_CONFIG = {
         "edtech": ["education", "learning", "course"],
         "logistics": ["logistics", "supply chain", "shipping"],
     }
+}
+
+# ==================== LLM CONFIG ====================
+LLM_CONFIG = {
+    # provider: "groq" or "together" (for Qwen2.5-72B, set together)
+    # also supports "openai" when LLM_PROVIDER=openai
+    "provider": os.getenv("LLM_PROVIDER", os.getenv("GROQ_PROVIDER", "groq")).lower(),
+    "api_key": os.getenv(
+        "LLM_API_KEY",
+        os.getenv("OPENAI_API_KEY", os.getenv("GROQ_API_KEY", "")),
+    ),
+    "model": os.getenv(
+        "LLM_MODEL",
+        os.getenv("OPENAI_MODEL", os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")),
+    ),
+    "timeout_seconds": int(os.getenv("LLM_TIMEOUT_SECONDS", os.getenv("GROQ_TIMEOUT_SECONDS", "40"))),
+    "max_input_chars": int(os.getenv("LLM_MAX_INPUT_CHARS", os.getenv("GROQ_MAX_INPUT_CHARS", "18000"))),
+    "enabled": os.getenv("USE_LLM_EXTRACTION", os.getenv("USE_GROQ_LLM", "true")).lower() == "true",
 }

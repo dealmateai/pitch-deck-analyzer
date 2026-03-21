@@ -10,6 +10,7 @@ from nlp.pdf_extractor import PDFExtractor
 from nlp.nlp_pipeline import NLPPipeline
 from nlp.company_extractor import CompanyExtractor
 from nlp.founder_extractor import FounderExtractor
+from nlp.llm_extractor import LLMExtractor
 from nlp.fit_calculator import FitCalculator
 from api.models import AnalysisResponse, CompanyExtracted, FounderExtracted
 
@@ -47,6 +48,12 @@ class ScoringPipeline:
         
         self.founder_extractor = FounderExtractor()
         log.info("✓ Founder extractor initialized")
+
+        self.llm_extractor = LLMExtractor()
+        if self.llm_extractor.is_available():
+            log.info("✓ LLM extractor initialized")
+        else:
+            log.info("ℹ LLM extractor not active, using rule-based extraction")
         
         self.fit_calculator = FitCalculator()
         log.info("✓ Fit calculator initialized")
@@ -96,6 +103,12 @@ class ScoringPipeline:
                 pdf_data["full_text_cleaned"],
                 nlp_analysis.get("entities", {})
             )
+
+            # Optional LLM extraction for improved accuracy, merged with rule-based output.
+            llm_result = self.llm_extractor.extract(pdf_data["full_text_cleaned"])
+            if llm_result:
+                company_info = self._merge_company_info(company_info, llm_result.get("company", {}))
+                founder_info = self._merge_founder_info(founder_info, llm_result.get("founder", {}))
             
             # STEP 5: Calculate company fit
             log.info("\n[STEP 5] Calculating company fit score...")
@@ -228,3 +241,90 @@ class ScoringPipeline:
             recommendations.insert(0, "✅ Good fit - Ready for refinement")
         
         return recommendations if recommendations else ["✓ Standard pitch deck"]
+
+    def _merge_company_info(self, base: Dict, llm: Dict) -> Dict:
+        """Merge LLM company fields over base extraction when present."""
+        merged = dict(base or {})
+        llm = llm or {}
+
+        for key in ["name", "industry", "problem", "solution", "business_model"]:
+            value = llm.get(key)
+            if isinstance(value, str) and value.strip():
+                merged[key] = value.strip()
+
+        merged["market_size"] = self._merge_nested_dict(
+            merged.get("market_size", {}),
+            llm.get("market_size", {}),
+        )
+        merged["traction"] = self._merge_nested_dict(
+            merged.get("traction", {}),
+            llm.get("traction", {}),
+        )
+
+        return merged
+
+    def _merge_founder_info(self, base: Dict, llm: Dict) -> Dict:
+        """Merge LLM founder fields over base extraction when present."""
+        merged = dict(base or {})
+        llm = llm or {}
+
+        llm_names = llm.get("names")
+        if isinstance(llm_names, list) and llm_names:
+            merged["names"] = [str(name).strip() for name in llm_names if str(name).strip()]
+            merged["count"] = len(merged["names"])
+
+        llm_count = llm.get("count")
+        if isinstance(llm_count, int) and llm_count > 0:
+            merged["count"] = llm_count
+
+        for key in ["experience_level", "domain_expertise"]:
+            value = llm.get(key)
+            if isinstance(value, str) and value.strip():
+                merged[key] = value.strip()
+
+        for key in ["technical_background", "startup_experience"]:
+            value = llm.get(key)
+            if isinstance(value, bool):
+                merged[key] = value
+
+        llm_education = llm.get("education")
+        if isinstance(llm_education, dict):
+            merged["education"] = self._merge_nested_dict(merged.get("education", {}), llm_education)
+
+        previous_companies = llm.get("previous_companies")
+        if isinstance(previous_companies, list):
+            cleaned_companies = []
+            for item in previous_companies:
+                if isinstance(item, dict) and item.get("name"):
+                    cleaned_companies.append(
+                        {
+                            "name": str(item.get("name")).strip(),
+                            "position": str(item.get("position", "Employee")).strip() or "Employee",
+                        }
+                    )
+            if cleaned_companies:
+                merged["previous_companies"] = cleaned_companies
+
+        # Maintain compatibility with fit calculator expectations.
+        if "previous_startups" not in merged:
+            merged["previous_startups"] = {
+                "is_serial": bool(merged.get("startup_experience", False)),
+                "previous_exits": 0,
+            }
+
+        return merged
+
+    def _merge_nested_dict(self, base: Dict, llm: Dict) -> Dict:
+        """Merge nested dict values by preferring non-empty LLM fields."""
+        merged = dict(base or {})
+        if not isinstance(llm, dict):
+            return merged
+
+        for key, value in llm.items():
+            if value is None:
+                continue
+            if isinstance(value, str) and not value.strip():
+                continue
+            merged[key] = value
+
+        return merged

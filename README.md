@@ -296,6 +296,35 @@ Open in browser: `http://localhost:8000/docs`
 | Max file size | 50 MB |
 | Max pages | 100 |
 
+## LLM Accuracy Mode (Groq)
+
+For better extraction accuracy on real pitch decks, the API now supports Groq LLM extraction.
+
+### 1) Where to paste your Groq API key
+
+Create a `.env` file in the project root (same folder as `api_server.py`) and add:
+
+```env
+USE_GROQ_LLM=true
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.1-8b-instant
+GROQ_TIMEOUT_SECONDS=40
+GROQ_MAX_INPUT_CHARS=18000
+```
+
+You can copy `.env.example` and fill the `GROQ_API_KEY` value.
+
+### 2) How it works
+
+- Rule-based extraction runs as baseline.
+- Groq LLM extraction runs for higher-accuracy structured fields.
+- If Groq fails or key is missing, API safely falls back to rule-based extraction.
+
+### 3) Recommended free model
+
+- Default is `llama-3.1-8b-instant` (fast and generally good on free tier).
+- You can change `GROQ_MODEL` anytime in `.env`.
+
 
 
 ## 📝 API Endpoints
